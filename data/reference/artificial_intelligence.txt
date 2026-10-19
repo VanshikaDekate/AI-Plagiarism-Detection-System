@@ -1,0 +1,5 @@
+Artificial intelligence is transforming modern healthcare through machine learning systems that can assist doctors in analysing medical data. These systems can identify patterns in patient records and support clinical decision-making.
+
+Artificial intelligence is also being applied to education, finance, manufacturing, and software development. Modern systems can process large datasets, recognize patterns, and automate selected tasks.
+
+Reliable data and careful evaluation are essential when artificial intelligence is used in practical applications. Automated systems should be evaluated before their outputs are used to support important decisions.

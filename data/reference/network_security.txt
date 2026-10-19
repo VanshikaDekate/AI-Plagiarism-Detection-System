@@ -1,0 +1,5 @@
+Network security focuses on protecting computer systems and communications from unauthorized access, disruption, and misuse. Organizations use authentication, encryption, firewalls, and monitoring systems to reduce security risks.
+
+Security professionals analyze network traffic and system logs to identify unusual activity. Regular updates and careful configuration are also important because outdated software can contain vulnerabilities.
+
+No single security mechanism can address every possible threat. Effective protection generally involves multiple defensive measures combined with monitoring and appropriate response procedures.

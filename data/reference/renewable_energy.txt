@@ -1,0 +1,5 @@
+Renewable energy systems use naturally replenished resources such as sunlight, wind, and flowing water. Solar panels convert sunlight into electrical energy, while wind turbines use moving air to generate power.
+
+Energy storage can help address the variable output of renewable sources. Batteries and other storage technologies allow electricity to be retained and supplied when generation changes.
+
+The transition toward renewable energy involves technical, economic, and environmental considerations. Efficient systems require appropriate planning, reliable infrastructure, and careful management of energy resources.

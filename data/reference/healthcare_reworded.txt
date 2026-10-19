@@ -1,0 +1,5 @@
+Modern medical practice is increasingly influenced by artificial intelligence. Learning-based software can help physicians examine clinical information and discover useful patterns in patient records.
+
+Healthcare organizations also rely on digital platforms to manage information, assist with diagnostic decisions, and streamline everyday clinical processes. Such tools can make the handling of large datasets more efficient.
+
+Even so, automated tools are intended to assist medical professionals rather than replace their judgement.

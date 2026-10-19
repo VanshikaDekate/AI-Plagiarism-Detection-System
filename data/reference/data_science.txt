@@ -1,0 +1,5 @@
+Data science combines programming, statistics, and analytical methods to extract useful information from datasets. A typical data analysis workflow begins by collecting and cleaning information before applying statistical or machine learning techniques.
+
+Visualization can help researchers identify trends, unusual observations, and relationships between variables. Statistical measures provide additional ways to summarize and interpret the data.
+
+The quality of an analytical result depends partly on the quality of the underlying dataset. Missing values, measurement errors, and biased samples can affect conclusions.

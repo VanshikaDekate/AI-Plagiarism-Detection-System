@@ -1,0 +1,4 @@
+AIPlagiarismSystem
+*.o
+.DS_Store
+.vscode/
