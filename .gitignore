@@ -1,4 +1,18 @@
+
+# Compiled executable
 AIPlagiarismSystem
+
+# C++ build artifacts
 *.o
+*.out
+*.dSYM/
+
+# macOS
 .DS_Store
+
+# VS Code settings
 .vscode/
+
+# Temporary and log files
+*.tmp
+*.log
