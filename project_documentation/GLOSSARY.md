@@ -1,0 +1,22 @@
+# Glossary
+
+- **Auxiliary space** — extra memory an algorithm uses in addition to its input.
+- **Average-case complexity** — expected resource use over typical inputs; it is not a worst-case guarantee.
+- **Bag of words** — word counts that ignore token order.
+- **Boundary / word boundary** — regex position between a word character and a non-word character (or text edge).
+- **C++17** — language standard required here for `std::filesystem`.
+- **Cosine similarity** — angle-based comparison of two numeric vectors; these vectors are word-frequency counts.
+- **Feature** — numeric measurement computed from input text, such as average token length.
+- **Feature vector** — a record/array of numeric features; here `FeatureVector` is a struct of seven doubles.
+- **Hash table** — key/value structure using hashes for average constant-time lookup, with worse collision cases.
+- **Heuristic** — practical rule-based estimate that may be useful but is not a proof or calibrated probability.
+- **Jaccard similarity** — intersection size divided by union size for two sets.
+- **N-gram** — sequence of n adjacent tokens; a trigram is a 3-token sequence.
+- **Normalization** — converting input into a consistent form before processing, such as lowercasing and whitespace collapse.
+- **Population variance** — average squared deviation using divisor N; the implementation uses this form for sentence lengths.
+- **Reference corpus** — the collection of text files used as comparison sources; this project has twelve local synthetic examples.
+- **Stable sort** — sort that preserves original order among equal keys; the project's Quick Sort is not stable.
+- **Tokenization** — splitting text into units; current code splits on whitespace and strips sentence punctuation only at token ends.
+- **Type-token ratio** — number of unique word types divided by total token count; current `vocabularyRichness`.
+- **Undefined behavior** — C++ operation for which the standard imposes no required result; reading an uninitialized `choice` after failed input is one risk.
+- **Worst-case complexity** — maximum resource use for an input of a given size; last-pivot Quick Sort can reach quadratic time.

@@ -3,11 +3,13 @@
 #include "AIDetector.h"
 #include "SimilarityAnalyzer.h"
 #include "ReportGenerator.h"
+#include "Paraphraser.h"
 
 #include <iostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <limits>
 
 using namespace std;
 
@@ -94,18 +96,6 @@ int main()
 
         originalText += line; // Append the current line to the original text.
     }
-
-
-    if (originalText.empty()) // Check if the user entered any text.
-    {
-        cout << "\nNo text entered.\n";
-        return 0; // Exit the program if no text was entered.
-    }
-    {
-        cout << "\nNo text entered.\n"; // Inform the user that no text was entered.
-        return 0;
-    }
-
 
     // =======================================================
     // STEP 2: TEXT PREPROCESSING
@@ -260,6 +250,117 @@ int main()
         aiClassification, // Classification of the AI-likeness score into a readable category.
         results // Plagiarism analysis results.
     );
+
+
+    char choice;
+
+    cout << "\nWould you like to rephrase the submitted text? (y/n): ";
+    cin >> choice;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+    if (choice == 'y' || choice == 'Y')
+    {
+        Paraphraser paraphraser;
+
+        string rephrasedText = paraphraser.rephrase(originalText);
+
+        cout << "\n========================================\n";
+        cout << "             REPHRASED TEXT\n";
+        cout << "========================================\n";
+        cout << rephrasedText << "\n";
+
+        cout << "\nWould you like to analyse the rephrased text? (y/n): ";
+        cin >> choice;
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+        if (choice == 'y' || choice == 'Y')
+        {
+            // Preprocess the rephrased text.
+            string rephrasedCleanedText =
+                processor.cleanText(rephrasedText);
+
+            vector<string> rephrasedWords =
+                processor.tokenize(rephrasedCleanedText);
+
+            vector<string> rephrasedNgrams =
+                processor.generateNGrams(rephrasedWords, 3);
+
+            unordered_map<string, int> rephrasedFrequency;
+
+            for (const string& word : rephrasedWords)
+            {
+                rephrasedFrequency[word]++;
+            }
+
+            // Recalculate AI-likeness.
+            FeatureVector rephrasedFeatures =
+                aiDetector.extractFeatures(rephrasedText);
+
+            double rephrasedAiScore =
+                aiDetector.calculateScore(rephrasedFeatures);
+
+            string rephrasedClassification =
+                aiDetector.classify(rephrasedAiScore);
+
+            // Recalculate plagiarism similarity.
+            vector<SimilarityResult> rephrasedResults =
+                analyzer.analyzeAll(
+                    rephrasedWords,
+                    rephrasedFrequency,
+                    rephrasedNgrams,
+                    documents
+                );
+
+            // Display the new report.
+            cout << "\n\n========================================\n";
+            cout << "       REPHRASED TEXT ANALYSIS\n";
+            cout << "========================================\n";
+
+            report.showCombinedReport(
+                rephrasedFeatures,
+                rephrasedAiScore,
+                rephrasedClassification,
+                rephrasedResults
+            );
+
+            // Compare AI-likeness scores.
+            cout << "\n========================================\n";
+            cout << "           BEFORE / AFTER\n";
+            cout << "========================================\n";
+
+            cout << "AI score before : " << aiScore << "%\n";
+            cout << "AI score after  : " << rephrasedAiScore << "%\n";
+
+            cout << "AI score change : "
+                 << rephrasedAiScore - aiScore
+                 << " percentage points\n";
+
+            // Compare the top similarity scores.
+            double originalSimilarity = 0.0;
+            double rephrasedSimilarity = 0.0;
+
+            if (!results.empty())
+            {
+                originalSimilarity = results.front().finalScore;
+            }
+
+            if (!rephrasedResults.empty())
+            {
+                rephrasedSimilarity =
+                    rephrasedResults.front().finalScore;
+            }
+
+            cout << "Similarity before : "
+                 << originalSimilarity << "%\n";
+
+            cout << "Similarity after  : "
+                 << rephrasedSimilarity << "%\n";
+
+            cout << "Similarity change : "
+                 << rephrasedSimilarity - originalSimilarity
+                 << " percentage points\n";
+        }
+    }
 
 
     // =======================================================

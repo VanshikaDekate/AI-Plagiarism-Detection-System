@@ -16,3 +16,9 @@ AIPlagiarismSystem
 # Temporary and log files
 *.tmp
 *.log
+
+# Test executable
+test_paraphraser
+
+# Other generated executables
+AIPlagiarismSystem

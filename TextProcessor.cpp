@@ -46,11 +46,6 @@ string TextProcessor::cleanText(const string& text) // Clean and normalize the i
                 tolower(static_cast<unsigned char>(ch)) // Convert the character to lowercase and append it to the cleaned string.
             ); // Convert the character to lowercase and append it to the cleaned string.
         }
-        {
-            cleaned += static_cast<char>(
-                tolower(static_cast<unsigned char>(ch)) // Convert the character to lowercase and append it to the cleaned string.
-            );
-        }
 
         // Keep spaces.
         else if (isspace(static_cast<unsigned char>(ch)))
