@@ -68,7 +68,8 @@ check_failure() {
 check_failure "empty input rejected" "END
 " "Please enter valid text"
 whitespace_input=$(printf ' \t\r\n')
-check_failure "whitespace input rejected" "${whitespace_input}END
+check_failure "whitespace input rejected" "${whitespace_input}
+END
 " "Please enter valid text"
 check_failure "punctuation-only input rejected" "... !?
 END
