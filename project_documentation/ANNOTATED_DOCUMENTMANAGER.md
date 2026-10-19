@@ -10,18 +10,18 @@ The class privately owns `vector<Document> documents`. The public operations loa
 
 ## `readFile` (cpp line 32)
 
-1. `ifstream file(filename)` opens the named path in text mode.
+1. `ifstream file(filename)` opens the named path in text mode. The stream is an automatic local and closes through RAII on every return path.
 2. If `is_open()` is false, it writes an error to `cerr` and returns an empty string. Since empty files also yield empty content, callers cannot distinguish a failed read from a valid empty file by return value alone.
-3. Otherwise a `stringstream buffer` receives `file.rdbuf()`, copying the stream's remaining contents into memory; `buffer.str()` returns the whole file. For N file bytes, time and storage are O(N).
+3. Otherwise an 8192-byte buffer is repeatedly filled with `file.read` and appended to an `ostringstream`. A final short read at EOF is retained; `badbit` or a non-EOF failure is reported. The resulting string owns the complete file content. For N file bytes, time and storage are O(N).
 
 ## `loadDocuments` (line 77)
 
 1. `documents.clear()` removes the previous collection before attempting a reload.
-2. `fs::exists(directoryPath)` checks path existence. If false, an error is written and the function returns, leaving an empty vector.
+2. `fs::exists` and `fs::is_directory` use `error_code` overloads. Missing, non-directory, and status errors are reported, then the function returns with an empty collection.
 3. `namespace fs = std::filesystem` aliases the C++17 filesystem namespace.
-4. `directory_iterator` visits immediate directory entries (not recursive traversal). Non-regular files are skipped with `continue`; extension comparisons accept only exactly `.txt`.
-5. `filename` is the basename shown in reports; `fullPath` is the path used to read. `readFile(fullPath)` creates `content`. Only nonempty strings are added, so empty files are silently omitted after a successful read.
-6. `Document document(filename, content)` indexes the contents; `documents.push_back(document)` copies that local document into the vector. A move could avoid a copy, but the current source copies. Finally the function prints loaded count.
+4. `directory_iterator` visits immediate directory entries (not recursive traversal). Non-regular files are skipped; extension comparisons accept only exactly `.txt`. Iterator construction, entry status, and increments are checked with `error_code`; traversal problems are reported.
+5. `filename` is the basename shown in reports; `fullPath` is the path used to read. `readFile(fullPath)` creates `content`. Empty files are explicitly reported and skipped; failed opens/reads are logged to `cerr`.
+6. `Document document(filename, content)` indexes the contents; `documents.push_back(std::move(document))` moves the indexed object into the vector. Finally the function prints loaded count.
 
 Expected total time is proportional to total file bytes/tokens plus directory entries, under average hash behavior. It holds every document's raw text and indexes in memory. Iteration order is unspecified, so equal-scoring tie order may vary.
 
@@ -31,4 +31,4 @@ Returns `const vector<Document>&` to the manager-owned vector. The reference is 
 
 ## Error and path assumptions
 
-The path in `main` is relative to current working directory. Existence is checked, but the code does not verify that the existing path is a directory or catch `filesystem_error`; a regular file path, permissions failure, or directory iteration error may throw. Read failures log to `cerr` but are then treated similarly to empty documents.
+The path in `main` remains relative to current working directory. Filesystem status and iteration errors are reported instead of escaping as filesystem exceptions. `readFile` still returns an empty string for both an empty file and a failed read; however, failures are logged and `loadDocuments` separately reports that empty content was skipped.

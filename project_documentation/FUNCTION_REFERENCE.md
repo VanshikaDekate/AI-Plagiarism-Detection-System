@@ -36,8 +36,8 @@ Complexities below describe the function's own work and explicitly identify impo
 | `AIDetector::AIDetector()` | Initializes the 27 fixed function words. O(F) construction/storage. |
 | `bool AIDetector::isFunctionWord(const string& word) const` | Linear search via `std::find`; returns membership. O(F), no additional meaningful storage. |
 | `FeatureVector AIDetector::extractFeatures(const string& text) const` | Empty-token input returns zero features. Otherwise computes counts, vocabulary, word/sentence metrics and punctuation. O(N+WF) expected (F=27 fixed; effectively O(N)), O(N+W) auxiliary storage. Uses `TextProcessor`; not a statistical classifier. |
-| `double AIDetector::calculateScore(const FeatureVector& features) const` | Normalizes seven features with upper caps and applies fixed weighted sum, multiplied by 100. O(1), O(1). |
-| `string AIDetector::classify(double score) const` | Threshold categories at 40 and 70. O(1), returns an owned string. Does not validate range. |
+| `double AIDetector::calculateScore(const FeatureVector& features) const` | Returns zero for non-finite or all-nonpositive input; clamps normalized fields and final weighted score to [0,100]. O(1), O(1). |
+| `string AIDetector::classify(double score) const` | Threshold categories at 40 and 70. O(1), returns an owned string. Callers should supply the bounded detector score. |
 
 ## Similarity and ranking
 
@@ -45,10 +45,10 @@ Complexities below describe the function's own work and explicitly identify impo
 |---|---|
 | `double SimilarityAnalyzer::jaccard(const vector<string>& words1, const vector<string>& words2)` | Converts to unique sets and computes intersection/union; empty union returns zero. O(W1+W2) expected, O(U1+U2) storage. |
 | `double SimilarityAnalyzer::cosine(const vector<string>& words1, const vector<string>& words2)` | Builds frequency vectors and cosine score; zero vector returns zero. O(W1+W2+U1+U2) expected; O(U1+U2) storage. |
-| `double SimilarityAnalyzer::ngramSimilarity(const vector<string>& ngrams1, const vector<string>& ngrams2)` | Returns matching submitted gram occurrences / submitted gram count; empty query returns zero. O(N1+N2) expected, O(U2) set storage. |
-| `SimilarityResult SimilarityAnalyzer::analyze(const vector<string>& submittedWords, const vector<string>& submittedNgrams, const string& filename, const vector<string>& documentWords, const vector<string>& documentNgrams)` | Calculates three metrics, weighted final score, and a list of matching submitted grams. Complexity is combined metric cost plus an extra reference set and scan; O(Wq+Wd+Nq+Nd) expected. |
-| `int SimilarityAnalyzer::partition(vector<SimilarityResult>& results, int low, int high)` | In-place descending partition around last score; returns pivot index. O(high-low) time, O(1) auxiliary storage. |
-| `void SimilarityAnalyzer::quickSort(vector<SimilarityResult>& results, int low, int high)` | In-place recursive Quick Sort using `partition`; average O(R log R), worst O(R²); recursion stack average O(log R), worst O(R). |
+| `double SimilarityAnalyzer::ngramSimilarity(const vector<string>& ngrams1, const vector<string>& ngrams2)` | Builds unique sets and returns symmetric Jaccard overlap; both-empty returns zero. O(N1+N2) expected, O(U1+U2) set storage. |
+| `SimilarityResult SimilarityAnalyzer::analyze(const vector<string>& submittedWords, const vector<string>& submittedNgrams, const string& filename, const vector<string>& documentWords, const vector<string>& documentNgrams)` | Calculates three bounded metrics, weighted final score in [0,1], and distinct matching submitted grams. O(Wq+Wd+Nq+Nd) expected. |
+| `size_t SimilarityAnalyzer::partition(vector<SimilarityResult>& results, size_t low, size_t high)` | In-place descending partition around last score; returns pivot index. O(high-low) time, O(1) auxiliary storage. |
+| `void SimilarityAnalyzer::quickSort(vector<SimilarityResult>& results, size_t low, size_t high)` | In-place Quick Sort; average O(R log R), worst O(R²) comparisons. Recurses on smaller side, keeping stack O(log R). |
 | `vector<SimilarityResult> SimilarityAnalyzer::analyzeAll(const vector<string>& submittedWords, const unordered_map<string,int>& frequency, const vector<string>& submittedNgrams, const vector<Document>& documents)` | Calls `analyze` per document, sorts results, returns them. `frequency` is unused. Expected total per-doc work plus O(R log R) sorting; worst-case sorting O(R²); result storage O(R) plus per-result matching phrases. |
 
 ## Reporting

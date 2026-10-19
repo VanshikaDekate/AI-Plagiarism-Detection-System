@@ -50,6 +50,7 @@ string Paraphraser::replacePhrases(const string& text)
     return result;
 }
 
+
 string Paraphraser::replaceWords(const string& text)
 {
     string result = text;
@@ -68,6 +69,7 @@ string Paraphraser::replaceWords(const string& text)
 
     return result;
 }
+
 
 string Paraphraser::rephrase(const string& text)
 {

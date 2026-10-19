@@ -22,3 +22,7 @@ test_paraphraser
 
 # Other generated executables
 AIPlagiarismSystem
+# Audit build binaries
+AIPlagiarismSystem_audit
+AIPlagiarismSystem_sanitized
+test_paraphraser_audit

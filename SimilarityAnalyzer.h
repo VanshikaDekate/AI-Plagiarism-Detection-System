@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <cstddef>
 
 using namespace std;
 
@@ -11,10 +12,10 @@ struct SimilarityResult
 {
     string filename;
 
-    double jaccard;
-    double cosine;
-    double ngram;
-    double finalScore;
+    double jaccard = 0.0;
+    double cosine = 0.0;
+    double ngram = 0.0;
+    double finalScore = 0.0;
 
     vector<string> matchingPhrases;
 };
@@ -26,16 +27,16 @@ class SimilarityAnalyzer
 private:
 
     // Quick Sort functions
-    int partition(
+    std::size_t partition(
         vector<SimilarityResult>& results,
-        int low,
-        int high
+        std::size_t low,
+        std::size_t high
     );
 
     void quickSort(
         vector<SimilarityResult>& results,
-        int low,
-        int high
+        std::size_t low,
+        std::size_t high
     );
 
 public:

@@ -18,5 +18,5 @@
 - **Stable sort** — sort that preserves original order among equal keys; the project's Quick Sort is not stable.
 - **Tokenization** — splitting text into units; current code splits on whitespace and strips sentence punctuation only at token ends.
 - **Type-token ratio** — number of unique word types divided by total token count; current `vocabularyRichness`.
-- **Undefined behavior** — C++ operation for which the standard imposes no required result; reading an uninitialized `choice` after failed input is one risk.
+- **Undefined behavior** — C++ operation for which the standard imposes no required result; reading an uninitialized local variable is one example.
 - **Worst-case complexity** — maximum resource use for an input of a given size; last-pivot Quick Sort can reach quadratic time.

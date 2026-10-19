@@ -23,19 +23,20 @@ This inventories named parameters, members, locals, and loop variables in the in
 | `analyzer` | `SimilarityAnalyzer`, `main` | Stateless service. | Computes sorted original/rephrased results. |
 | `results` | `vector<SimilarityResult>`, `main` | Original corpus comparison. | Reported and `front()` read for best score if nonempty. |
 | `report` | `ReportGenerator`, `main` | Stateless presentation object. | Prints original and optional rephrased results. |
-| `choice` | `char`, `main` | Declared without initializer; extraction is expected to set it. | Read after each `cin >>`; if extraction fails, it can be indeterminate (undefined behavior). |
+| `rephraseChoice` | `bool`, `main` | Initialized false; output parameter set by `askYesNo` after a valid response. | Controls whether the first optional branch runs. |
 | `paraphraser` | `Paraphraser`, optional branch | Builds fixed phrase/synonym maps. | Read through `rephrase`. |
 | `rephrasedText` | `string`, optional branch | Output of `rephrase(originalText)`. | Printed and conditionally analyzed. |
 | `rephrasedCleanedText` | `string`, second-pass branch | Cleaned rephrased text. | Tokenized. |
 | `rephrasedWords` | `vector<string>`, second pass | Rephrased tokens. | Used for counts and similarity. |
 | `rephrasedNgrams` | `vector<string>`, second pass | Rephrased trigrams. | Passed to analyzer. |
+| `analyzeRephrased` | `bool`, second pass | Initialized false; set by `askYesNo` after a valid response. | Controls the second analysis branch; distinct from `rephraseChoice`. |
 | `rephrasedFrequency` | `unordered_map<string,int>`, second pass | Empty, then populated by word loop. | Passed but ignored by `analyzeAll`. |
 | `rephrasedFeatures` | `FeatureVector`, second pass | Features for rephrased text. | Scored and reported. |
 | `rephrasedAiScore` | `double`, second pass | Score for rephrased text. | Printed and compared with `aiScore`. |
 | `rephrasedClassification` | `string`, second pass | Threshold class. | Printed by report. |
 | `rephrasedResults` | `vector<SimilarityResult>`, second pass | Sorted rephrased comparison. | Reported and inspected for best score. |
-| `originalSimilarity` | `double`, comparison block | 0.0 fallback; overwritten with first original result's fractional score. | Printed with an incorrect `%` suffix but no ×100. |
-| `rephrasedSimilarity` | `double`, comparison block | Same for rephrased result. | Printed with an incorrect `%` suffix but no ×100. |
+| `originalSimilarity` | `double`, comparison block | 0.0 fallback; overwritten with the first original result's `finalScore * 100`. | Printed as a percentage. |
+| `rephrasedSimilarity` | `double`, comparison block | Same for rephrased result. | Printed as a percentage. |
 
 ## `TextProcessor.cpp`
 
@@ -97,11 +98,11 @@ This inventories named parameters, members, locals, and loop variables in the in
 | `uniqueWords` | `unordered_set<string>` | Owns distinct vocabulary. |
 | `totalCharacters` | `double` | Sum of token lengths, then average numerator. |
 | `pair` | `const auto&` | Alias to map key/value; `pair.second` is count. |
-| `repeatedWords` | `int` | Counts extra occurrences (count minus one). |
-| `functionWordCount` | `int` | Counts tokens in fixed dictionary. |
-| `punctuationCount` | `int` | Counts punctuation bytes in original input. |
+| `repeatedWords` | `size_t` | Counts extra occurrences (count minus one). |
+| `functionWordCount` | `size_t` | Counts tokens in fixed dictionary. |
+| `punctuationCount` | `size_t` | Counts punctuation bytes in original input. |
 | `ch` | `char` | Current original character in punctuation/sentence loops. |
-| `sentenceLengths` | `vector<int>` | Owns nonempty sentence word counts. |
+| `sentenceLengths` | `vector<size_t>` | Owns nonempty sentence word counts without narrowing. |
 | `currentSentence` | `string` | Accumulates characters until a sentence terminator; cleared on boundary. |
 | `ss` | `stringstream` | Reads original text one character at a time. |
 | `sentenceWords` | `vector<string>` | Temporary tokens for each sentence; size appended when nonempty. |
@@ -129,7 +130,7 @@ This inventories named parameters, members, locals, and loop variables in the in
 | `submittedWords`, `submittedNgrams`, `documentWords`, `documentNgrams` | const-reference parameters | Borrowed sequences read by `analyze`. |
 | `filename` | `const string&`, `analyze` | Borrowed source name, copied into result. |
 | `result` | `SimilarityResult`, `analyze` / `analyzeAll` | Mutable local result populated then returned or appended. |
-| `low`, `high`, `i`, `j`, `pivotIndex` | `int`, Quick Sort | Partition bounds, scan position, and recursive pivot index. |
+| `low`, `high`, `nextGreater`, `j`, `pivotIndex` | `size_t`, Quick Sort | Nonnegative partition bounds, scan position, and pivot index. |
 | `pivot` | `double` | Last result's score for current partition. |
 | `frequency` | `const unordered_map<string,int>&`, `analyzeAll` | Borrowed but explicitly unused compatibility parameter. |
 | `documents` | `const vector<Document>&` | Borrowed corpus. |
@@ -137,7 +138,7 @@ This inventories named parameters, members, locals, and loop variables in the in
 | `documentNgrams` | `vector<string>` | Temporary copy from unordered document trigram set. |
 | `results` | `vector<SimilarityResult>` | Owns all per-document results; sorted in place. |
 
-`ReportGenerator` parameters `features`, `results`, `classification` are const references; `score` and `aiScore` are value `double`s. Its locals: `rank` starts at one and increments; `best` aliases the first result; `result` aliases each ranked entry; `count` increments while printing; `phrase` aliases each matching phrase. They are all read-only except the counters.
+`ReportGenerator` parameters `features`, `results`, `classification` are const references; `score` and `aiScore` are value `double`s. Its locals: `rank` starts at one and increments; `best` aliases the first result; `result` aliases each ranked entry; `count` increments while printing; `phrase` aliases each matching phrase. They are all read-only except the counters. The added `askYesNo` helper has a `const string& prompt`, a `bool& answer` set only on valid input, and local `input`, `first`, and `last` values for trimming and validation.
 
 ## `Paraphraser.cpp` and test drivers
 

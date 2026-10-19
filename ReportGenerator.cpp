@@ -29,6 +29,7 @@ void ReportGenerator::showAIReport(
     cout << "========================================\n";
     cout << "           AI DETECTION REPORT\n";
     cout << "========================================\n";
+    cout << "Heuristic estimate only; it does not prove authorship.\n";
 
 
     cout << fixed << setprecision(2);
@@ -95,8 +96,9 @@ void ReportGenerator::showPlagiarismReport(
 {
     cout << "\n";
     cout << "========================================\n";
-    cout << "       PLAGIARISM DETECTION REPORT\n";
+    cout << "      LOCAL CORPUS SIMILARITY REPORT\n";
     cout << "========================================\n";
+    cout << "Similarity is lexical overlap, not proof of plagiarism or originality.\n";
 
 
     if (results.empty())

@@ -70,7 +70,7 @@ Answers below distinguish **verified implementation behavior** from general theo
 
 **Concise answer:** The project implements `partition` and recursive `quickSort` itself. It does not call `std::sort`.
 
-**Deeper explanation:** The last element is pivot; `partition` moves strictly larger scores before it, yielding descending order. Average time is O(R log R), worst time O(R²). Equal values are not stable, and the recursion stack can become O(R).
+**Deeper explanation:** The last element is pivot; `partition` moves strictly larger scores before it, yielding descending order. Average comparisons are O(R log R), worst comparisons O(R²). Equal values are not stable; recursive calls always process the smaller partition, keeping stack use O(log R).
 
 **Reference:** [`SimilarityAnalyzer.cpp`](../SimilarityAnalyzer.cpp), `partition`, `quickSort`.
 
@@ -78,21 +78,21 @@ Answers below distinguish **verified implementation behavior** from general theo
 
 ### 8. What does the n-gram similarity actually measure?
 
-**Concise answer:** It measures the fraction of submitted n-gram occurrences found in the reference's unique trigram set.
+**Concise answer:** It computes Jaccard similarity over unique submitted and reference trigram sets.
 
-**Deeper explanation:** It is directional: query duplicates are counted repeatedly, while reference duplicates are removed. It is not symmetric Jaccard over two sets and should be interpreted as query coverage.
+**Deeper explanation:** Both inputs are deduplicated, and the score is intersection size divided by union size. Thus it is symmetric; if both are empty, the implementation defines the score as zero.
 
 **Reference:** [`SimilarityAnalyzer.cpp`](../SimilarityAnalyzer.cpp), `ngramSimilarity`.
 
-**Follow-up:** How could it be made symmetric? Deduplicate both sides and divide intersection by union (or another explicitly defined symmetric score).
+**Follow-up:** Why return zero for two empty sets? To avoid interpreting two documents with no trigrams as a perfect trigram match.
 
 ## Formula and score questions
 
 ### 9. Explain the three text-similarity metrics.
 
-**Concise answer:** Jaccard compares unique-word sets; cosine compares word-frequency vectors; n-gram containment compares ordered three-word sequences.
+**Concise answer:** Jaccard compares unique-word sets; cosine compares word-frequency vectors; trigram Jaccard compares unique sets of ordered three-word sequences.
 
-**Deeper explanation:** Jaccard is `|A∩B|/|A∪B|`; cosine is dot product divided by vector magnitudes; the third is matches divided by submitted gram count. They capture different forms of lexical overlap, but none understands meaning.
+**Deeper explanation:** Both Jaccard measures use `|A∩B|/|A∪B|`; cosine is dot product divided by vector magnitudes. They capture different forms of lexical overlap, but none understands meaning.
 
 **Reference:** [`MATHEMATICAL_EXPLANATION.md`](MATHEMATICAL_EXPLANATION.md).
 
@@ -102,7 +102,7 @@ Answers below distinguish **verified implementation behavior** from general theo
 
 **Concise answer:** `0.30*Jaccard + 0.50*cosine + 0.20*ngram`.
 
-**Deeper explanation:** Weights sum to one and the components are ordinarily in [0,1], so final score remains fractional. The report multiplies it by 100 for percent display; the before/after summary currently omits that conversion.
+**Deeper explanation:** Weights sum to one and each component and final score are constrained to [0,1]. Reports and before/after output multiply by 100 for percentage display.
 
 **Reference:** `SimilarityAnalyzer::analyze`; [findings](BUGS_AND_RECOMMENDATIONS.md).
 
@@ -134,7 +134,7 @@ Answers below distinguish **verified implementation behavior** from general theo
 
 **Concise answer:** A missing directory is logged; `loadDocuments` returns with an empty vector. `analyzeAll` returns an empty result vector, and the report says no reference documents were found.
 
-**Deeper explanation:** A genuinely empty directory follows the same report path. An existing non-directory or filesystem iteration failure can throw because exceptions are not caught.
+**Deeper explanation:** A genuinely empty directory follows the same report path. Existence/type checks and directory iteration use error reporting; failures leave an empty or partial collection rather than throwing an uncaught filesystem exception.
 
 **Reference:** [`DocumentManager.cpp`](../DocumentManager.cpp), [`ReportGenerator.cpp`](../ReportGenerator.cpp).
 
@@ -142,13 +142,13 @@ Answers below distinguish **verified implementation behavior** from general theo
 
 ### 14. What happens if the submitted text contains no words?
 
-**Concise answer:** Feature extraction returns all-zero features; score calculation still returns 15 because of the inverse-repetition term. Similarity metrics return zero for empty vectors, and the user still sees reports/prompts.
+**Concise answer:** `main` rejects empty, whitespace-only, and punctuation-only input before running analysis, with a nonzero exit status.
 
-**Deeper explanation:** `main` has no empty-token guard. This creates a misleading nonzero heuristic score for empty or punctuation-only input.
+**Deeper explanation:** The feature extractor also returns a zero feature vector for no tokens, and the scorer returns 0 for an all-zero vector. The top-level guard gives users a clear error instead of a report.
 
 **Reference:** `main`; `AIDetector::extractFeatures` and `calculateScore`.
 
-**Follow-up:** What should the program do? Validate nonempty tokenization and show a clear input error or define an explicitly neutral empty score.
+**Follow-up:** How is punctuation-only input treated? Normalization/tokenization produces no words, so it follows the same rejection path.
 
 ### 15. Does low similarity against this corpus prove originality?
 
@@ -180,15 +180,15 @@ Answers below distinguish **verified implementation behavior** from general theo
 
 **Follow-up:** What could invalidate the reference? Destroying the manager or mutating/reallocating its vector.
 
-### 18. What does `cin.ignore(max, '\n')` do after a choice?
+### 18. How does yes/no input validation work?
 
-**Concise answer:** It discards the remainder of that input line after reading a single character.
+**Concise answer:** `askYesNo` reads a complete line, trims surrounding spaces, accepts only `y/Y/n/N`, and reprompts otherwise.
 
-**Deeper explanation:** This prevents remaining characters/newline from being consumed unexpectedly by subsequent input. It does not fix extraction failure; `choice` should be initialized and stream state checked.
+**Deeper explanation:** The output reference parameter is set only for a valid response. EOF returns `false`; callers exit safely. `rephraseChoice` and `analyzeRephrased` are separate initialized booleans, so no shadowing or uninitialized read occurs.
 
-**Reference:** [`main.cpp`](../main.cpp), choice handling.
+**Reference:** [`main.cpp`](../main.cpp), `askYesNo`.
 
-**Follow-up:** What if the user types `yes`? `choice` becomes `y`, then the rest of the line is discarded, so it is accepted.
+**Follow-up:** What if the user types `yes`? It is rejected because the full response must be exactly one accepted letter after trimming.
 
 ### 19. Why can building every `.cpp` together fail?
 
@@ -204,7 +204,7 @@ Answers below distinguish **verified implementation behavior** from general theo
 
 **Concise answer:** Complexity describes how operation counts grow with input size; a benchmark measures time on a particular machine and data set.
 
-**Deeper explanation:** Hash operations are average O(1) but can degrade; Quick Sort has average O(R log R) and worst O(R²). The documentation's bounds are theoretical, not runtime measurements.
+**Deeper explanation:** Hash operations are average O(1) but can degrade; Quick Sort comparisons average O(R log R) and worst O(R²), while smaller-side recursion bounds its stack at O(log R). These are theoretical, not runtime measurements.
 
 **Reference:** [`FUNCTION_REFERENCE.md`](FUNCTION_REFERENCE.md).
 

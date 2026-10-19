@@ -1,6 +1,7 @@
 #include "SimilarityAnalyzer.h"
 #include "Document.h"
 
+#include <algorithm>
 #include <unordered_set>
 #include <unordered_map>
 #include <cmath>
@@ -44,7 +45,7 @@ double SimilarityAnalyzer::jaccard(
         words2.end()
     );
 
-    int intersection = 0;
+    size_t intersection = 0;
 
     // Linear traversal of set1.
     // Hash lookup is used to check whether each word
@@ -57,18 +58,20 @@ double SimilarityAnalyzer::jaccard(
         }
     }
 
-    int unionSize =
-        static_cast<int>(set1.size()) +
-        static_cast<int>(set2.size()) -
-        intersection;
+    const size_t unionSize =
+        set1.size() + set2.size() - intersection;
 
     if (unionSize == 0)
     {
         return 0.0;
     }
 
-    return static_cast<double>(intersection)
-           / unionSize;
+    return clamp(
+        static_cast<double>(intersection)
+            / static_cast<double>(unionSize),
+        0.0,
+        1.0
+    );
 }
 
 
@@ -95,8 +98,8 @@ double SimilarityAnalyzer::cosine(
     const vector<string>& words2
 )
 {
-    unordered_map<string, int> freq1;
-    unordered_map<string, int> freq2;
+    unordered_map<string, size_t> freq1;
+    unordered_map<string, size_t> freq2;
 
     // Build frequency table for first text.
     for (const string& word : words1)
@@ -119,12 +122,13 @@ double SimilarityAnalyzer::cosine(
     for (const auto& item : freq1)
     {
         const string& word = item.first;
-        int count1 = item.second;
+        const double count1 = static_cast<double>(item.second);
 
-        if (freq2.find(word) != freq2.end())
+        const auto match = freq2.find(word);
+        if (match != freq2.end())
         {
             dotProduct +=
-                count1 * freq2[word];
+                count1 * static_cast<double>(match->second);
         }
     }
 
@@ -132,16 +136,16 @@ double SimilarityAnalyzer::cosine(
     // Calculate magnitude of first vector.
     for (const auto& item : freq1)
     {
-        magnitude1 +=
-            item.second * item.second;
+        const double count = static_cast<double>(item.second);
+        magnitude1 += count * count;
     }
 
 
     // Calculate magnitude of second vector.
     for (const auto& item : freq2)
     {
-        magnitude2 +=
-            item.second * item.second;
+        const double count = static_cast<double>(item.second);
+        magnitude2 += count * count;
     }
 
 
@@ -152,9 +156,12 @@ double SimilarityAnalyzer::cosine(
     }
 
 
-    return dotProduct /
-           (sqrt(magnitude1) *
-            sqrt(magnitude2));
+    return clamp(
+        dotProduct /
+            (sqrt(magnitude1) * sqrt(magnitude2)),
+        0.0,
+        1.0
+    );
 }
 
 
@@ -162,10 +169,10 @@ double SimilarityAnalyzer::cosine(
 // N-GRAM SIMILARITY
 // ============================================================
 //
-// Compares the 3-word sequences of the submitted text
-// against the reference document.
+// Compares unique submitted and reference n-gram sets.
+// Both sides are deduplicated, making this a symmetric Jaccard score.
 //
-// Data Structure:
+// Data Structures:
 //     unordered_set
 //
 // Hashing allows fast membership checking.
@@ -177,29 +184,41 @@ double SimilarityAnalyzer::ngramSimilarity(
     const vector<string>& ngrams2
 )
 {
-    if (ngrams1.empty())
-    {
-        return 0.0;
-    }
+    unordered_set<string> submittedNgrams(
+        ngrams1.begin(),
+        ngrams1.end()
+    );
 
     unordered_set<string> referenceNgrams(
         ngrams2.begin(),
         ngrams2.end()
     );
 
-    int matches = 0;
+    size_t intersection = 0;
 
-    for (const string& ngram : ngrams1)
+    for (const string& ngram : submittedNgrams)
     {
         if (referenceNgrams.find(ngram)
             != referenceNgrams.end())
         {
-            matches++;
+            ++intersection;
         }
     }
 
-    return static_cast<double>(matches)
-           / ngrams1.size();
+    const size_t unionSize =
+        submittedNgrams.size() + referenceNgrams.size() - intersection;
+
+    if (unionSize == 0)
+    {
+        return 0.0;
+    }
+
+    return clamp(
+        static_cast<double>(intersection)
+            / static_cast<double>(unionSize),
+        0.0,
+        1.0
+    );
 }
 
 
@@ -272,10 +291,13 @@ SimilarityResult SimilarityAnalyzer::analyze(
     // Combined similarity score
     // --------------------------------------------------------
 
-    result.finalScore =
+    result.finalScore = clamp(
         0.30 * result.jaccard +
         0.50 * result.cosine +
-        0.20 * result.ngram;
+        0.20 * result.ngram,
+        0.0,
+        1.0
+    );
 
 
     // --------------------------------------------------------
@@ -286,11 +308,13 @@ SimilarityResult SimilarityAnalyzer::analyze(
         documentNgrams.begin(),
         documentNgrams.end()
     );
+    unordered_set<string> matchedNgrams;
 
     for (const string& ngram : submittedNgrams)
     {
         if (referenceNgrams.find(ngram)
-            != referenceNgrams.end())
+                != referenceNgrams.end() &&
+            matchedNgrams.insert(ngram).second)
         {
             result.matchingPhrases.push_back(
                 ngram
@@ -325,42 +349,41 @@ SimilarityResult SimilarityAnalyzer::analyze(
 //
 // ============================================================
 
-int SimilarityAnalyzer::partition(
+size_t SimilarityAnalyzer::partition(
     vector<SimilarityResult>& results,
-    int low,
-    int high
+    size_t low,
+    size_t high
 )
 {
     // Choose the last element as pivot.
     double pivot =
         results[high].finalScore;
 
-    int i = low - 1;
+    size_t nextGreater = low;
 
 
     // Traverse the current partition.
-    for (int j = low; j < high; j++)
+    for (size_t j = low; j < high; ++j)
     {
         // Larger scores are placed before the pivot.
         if (results[j].finalScore > pivot)
         {
-            i++;
-
             swap(
-                results[i],
+                results[nextGreater],
                 results[j]
             );
+            ++nextGreater;
         }
     }
 
 
     // Place pivot at its correct position.
     swap(
-        results[i + 1],
+        results[nextGreater],
         results[high]
     );
 
-    return i + 1;
+    return nextGreater;
 }
 
 
@@ -371,49 +394,55 @@ int SimilarityAnalyzer::partition(
 // Algorithm:
 //     1. Select a pivot.
 //     2. Partition the data.
-//     3. Recursively sort the left partition.
-//     4. Recursively sort the right partition.
+//     3. Recurse on the smaller partition and iterate the larger.
 //
 // Average Complexity:
 //     O(n log n)
 //
-// Worst Case:
+// Worst-case comparisons:
 //     O(n²)
+//
+// The smaller-side recursion keeps auxiliary stack space O(log n).
 //
 // ============================================================
 
 void SimilarityAnalyzer::quickSort(
     vector<SimilarityResult>& results,
-    int low,
-    int high
+    size_t low,
+    size_t high
 )
 {
-    if (low < high)
+    while (low < high)
     {
-        // Partition the vector and obtain
-        // the final position of the pivot.
-        int pivotIndex =
+        const size_t pivotIndex =
             partition(
                 results,
                 low,
                 high
             );
 
-
-        // Sort left partition.
-        quickSort(
-            results,
-            low,
-            pivotIndex - 1
-        );
-
-
-        // Sort right partition.
-        quickSort(
-            results,
-            pivotIndex + 1,
-            high
-        );
+        // Recurse into the smaller partition and iterate over
+        // the larger one to keep stack use logarithmic.
+        if (pivotIndex - low < high - pivotIndex)
+        {
+            if (pivotIndex > low)
+            {
+                quickSort(results, low, pivotIndex - 1);
+            }
+            low = pivotIndex + 1;
+        }
+        else
+        {
+            if (pivotIndex < high)
+            {
+                quickSort(results, pivotIndex + 1, high);
+            }
+            if (pivotIndex == 0)
+            {
+                return;
+            }
+            high = pivotIndex - 1;
+        }
     }
 }
 
@@ -501,7 +530,7 @@ SimilarityAnalyzer::analyzeAll(
         quickSort(
             results,
             0,
-            static_cast<int>(results.size()) - 1
+            results.size() - 1
         );
     }
 

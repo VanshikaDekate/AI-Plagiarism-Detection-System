@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <utility>
 
 using namespace std;
 
@@ -42,9 +43,21 @@ string DocumentManager::readFile(
         return "";
     }
 
-    stringstream buffer;
+    ostringstream buffer;
 
-    buffer << file.rdbuf();
+    constexpr streamsize chunkSize = 8192;
+    char chunk[8192];
+    while (file.read(chunk, chunkSize) || file.gcount() > 0)
+    {
+        buffer.write(chunk, file.gcount());
+    }
+
+    if (file.bad() || (file.fail() && !file.eof()))
+    {
+        cerr << "Error: Failed while reading file: "
+             << filename << endl;
+        return "";
+    }
 
     return buffer.str();
 }
@@ -79,10 +92,35 @@ void DocumentManager::loadDocuments(
 {
     documents.clear();
 
-    if (!fs::exists(directoryPath))
+    error_code error;
+    const fs::path directory(directoryPath);
+
+    if (!fs::exists(directory, error))
     {
-        cerr << "Reference directory does not exist: "
-             << directoryPath << endl;
+        if (error)
+        {
+            cerr << "Error checking reference directory "
+                 << directoryPath << ": "
+                 << error.message() << endl;
+        }
+        else
+        {
+            cerr << "Reference directory does not exist: "
+                 << directoryPath << endl;
+        }
+
+        return;
+    }
+
+    if (!fs::is_directory(directory, error) || error)
+    {
+        cerr << "Reference path is not a readable directory: "
+             << directoryPath;
+        if (error)
+        {
+            cerr << " (" << error.message() << ")";
+        }
+        cerr << endl;
 
         return;
     }
@@ -95,41 +133,63 @@ void DocumentManager::loadDocuments(
     --------------------------------------------------------
     */
 
-    for (const auto& entry :
-         fs::directory_iterator(directoryPath))
+    fs::directory_iterator entry(directory, error);
+    const fs::directory_iterator end;
+
+    if (error)
     {
+        cerr << "Error opening reference directory "
+             << directoryPath << ": "
+             << error.message() << endl;
+        return;
+    }
+
+    while (entry != end)
+    {
+        const fs::directory_entry& current = *entry;
+        error.clear();
+
         // Ignore directories.
-        if (!entry.is_regular_file())
-            continue;
-
-
-        // Only process .txt files.
-        if (entry.path().extension() != ".txt")
-            continue;
-
-
-        string filename = entry.path().filename().string();
-
-        string fullPath = entry.path().string();
-
-
-        // Read file contents.
-        string content = readFile(fullPath);
-
-
-        if (!content.empty())
+        const bool regularFile = current.is_regular_file(error);
+        if (error)
         {
-            // Create a Document object.
-            Document document(filename, content);
+            cerr << "Error inspecting reference entry "
+                 << current.path().string() << ": "
+                 << error.message() << endl;
+        }
+        else if (regularFile &&
+                 current.path().extension() == ".txt")
+        {
+            const string filename =
+                current.path().filename().string();
+            const string fullPath = current.path().string();
+
+            // Read file contents.
+            string content = readFile(fullPath);
+
+            if (!content.empty())
+            {
+                // Create a Document object.
+                Document document(filename, content);
+
+                documents.push_back(std::move(document));
+            }
+            else
+            {
+                cout << "Ignoring empty reference file: "
+                     << filename << endl;
+            }
+        }
 
 
-            /*
-            DATA STRUCTURE:
-                vector<Document>
-
-            Store the processed document.
-            */
-            documents.push_back(document);
+        error.clear();
+        entry.increment(error);
+        if (error)
+        {
+            cerr << "Error traversing reference directory "
+                 << directoryPath << ": "
+                 << error.message() << endl;
+            break;
         }
     }
 

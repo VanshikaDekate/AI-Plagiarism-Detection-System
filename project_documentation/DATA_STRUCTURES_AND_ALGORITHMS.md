@@ -28,18 +28,18 @@ Used for unique document trigrams, unique vocabulary, and membership-based simil
 
 ### Word frequency and feature aggregation
 
-Frequency counting is performed by repeated hash-map increments. Unique vocabulary uses set insertion. Sentence splitting is a scan for `.?!`, followed by tokenizing each fragment. Feature calculations aggregate values by loops and `std::accumulate`.
+Frequency counting is performed by repeated hash-map increments. Unique vocabulary uses set insertion. Sentence splitting is a scan for `.?!`, followed by tokenizing each fragment. Feature calculations aggregate values by loops.
 
 ### Similarity metrics
 
 - Jaccard: unique-word intersection divided by union.
 - Cosine: term-frequency vector dot product divided by product of Euclidean norms.
-- N-gram score: number of submitted trigram occurrences found in the reference set divided by submitted trigram occurrence count. This is directional containment, not symmetric Jaccard.
-- Final score: 30% Jaccard + 50% cosine + 20% n-gram containment.
+- N-gram score: Jaccard similarity of unique submitted and reference trigram sets. Both sides are deduplicated; if both are empty the score is zero.
+- Final score: 30% Jaccard + 50% cosine + 20% trigram Jaccard.
 
 ### Quick Sort
 
-`partition` selects the last result score as pivot, moves strictly larger scores left, then places pivot between partitions. `quickSort` recursively sorts both sides. This is manually implemented Quick Sort; the project does not call `std::sort`. Average O(R log R), worst O(R²); the fixed last-item pivot can produce deep recursion. It is unstable, so equal-score order is not guaranteed.
+`partition` selects the last result score as pivot, moves strictly larger scores left, then places pivot between partitions. `quickSort` recurses on the smaller partition and loops through the larger. This is manually implemented Quick Sort; the project does not call `std::sort`. Average O(R log R), worst O(R²); the fixed last-item pivot can still produce quadratic comparisons, while smaller-side recursion keeps stack space O(log R). It is unstable, so equal-score order is not guaranteed.
 
 ### Phrase and synonym replacement
 
@@ -47,7 +47,7 @@ Frequency counting is performed by repeated hash-map increments. Unique vocabula
 
 ## STL-provided operations versus project algorithms
 
-`std::find`, `std::accumulate`, string streams, `std::regex_replace`, filesystem directory iteration, and `vector`/hash-container internals are library facilities. Their underlying implementations are not hand-coded here. The application itself does implement n-gram windows, feature aggregation, Jaccard/cosine calculations, phrase matching orchestration, and Quick Sort.
+`std::find`, string streams, `std::regex_replace`, filesystem directory iteration, and `vector`/hash-container internals are library facilities. Their underlying implementations are not hand-coded here. The application itself does implement n-gram windows, feature aggregation, Jaccard/cosine calculations, phrase matching orchestration, and Quick Sort.
 
 ## Techniques not present
 

@@ -31,4 +31,4 @@ This is deterministic with current nonoverlapping rules except for iteration ord
 
 ## `test_paraphraser.cpp`
 
-The separate driver constructs one `Paraphraser`, stores six test strings in `vector<string> tests`, loops with `size_t i`, and prints each input and transformed output. The sample cases exercise phrase replacement, sentence capitalization, word-boundary behavior (`methodology`), empty input, and technical punctuation/digits. It is a manual smoke driver, not a testing framework, and has its own `main`.
+The separate driver constructs one `Paraphraser`, uses a local `check` lambda to compare actual and expected strings, counts failures, and returns nonzero if any case fails. Its five cases exercise phrase replacement, capitalization, word-boundary behavior (`methodology`), empty input, and technical punctuation/digits. It has its own `main` and must be built separately.

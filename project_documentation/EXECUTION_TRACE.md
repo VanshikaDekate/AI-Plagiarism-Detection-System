@@ -4,13 +4,13 @@
 
 1. The operating system enters `main()` in [`main.cpp`](../main.cpp); the console banner is printed.
 2. The `getline` loop appends each line to `originalText`, preserving internal newlines. An exact `"END"` line stops collection. EOF also stops it.
-3. `TextProcessor::cleanText` converts to lowercase, replaces non-alpha/non-whitespace/non-sentence-punctuation bytes with spaces, then collapses whitespace. `tokenize` extracts words. `generateNGrams(words, 3)` emits each consecutive triple.
+3. `TextProcessor::cleanText` converts to lowercase, replaces non-alpha/non-whitespace/non-sentence-punctuation bytes with spaces, then collapses whitespace. `tokenize` extracts words. If none remain, `main` reports invalid input and exits nonzero. Otherwise `generateNGrams(words, 3)` emits each consecutive triple.
 4. `main` builds `frequency` by hash-map increment and prints word and trigram vector sizes.
 5. `AIDetector::extractFeatures(originalText)` independently cleans/tokenizes and derives counts, vocabulary, punctuation, sentence lengths, and variance. `calculateScore` applies normalizers and the weighted sum; `classify` applies 40/70 thresholds.
 6. `DocumentManager::loadDocuments("data/reference")` clears previous docs and visits the directory's immediate entries. Each regular `.txt` file that reads as nonempty is constructed as a `Document`. Each document builds its own ordered words, count map, and unique trigram set.
-7. `SimilarityAnalyzer::analyzeAll` iterates each document. For each, it rebuilds word frequencies inside `cosine`, uses unique word sets for Jaccard, creates a reference trigram set for n-gram overlap, calculates the weighted final score, and records matching submitted grams. It sorts all per-document results descending with the custom Quick Sort.
+7. `SimilarityAnalyzer::analyzeAll` iterates each document. For each, it rebuilds word frequencies inside `cosine`, uses unique word sets for Jaccard, uses unique submitted/reference trigram sets for symmetric trigram Jaccard, calculates a final score clamped to [0,1], and records distinct matching trigrams. It sorts all per-document results descending with custom Quick Sort.
 8. `ReportGenerator::showCombinedReport` prints features and the AI score, then rankings, top-document metric breakdown, category thresholds, matching phrases, and a footer. It does not analyze.
-9. The program prompts for rephrasing. On `y/Y`, `Paraphraser` runs fixed phrase substitutions, fixed word substitutions, and sentence-start capitalization. It prints the result and asks whether to analyze it.
+9. `askYesNo` reads and trims a full input line, retries invalid responses, accepts `y/Y/n/N`, and safely exits the optional flow on EOF. On `y/Y`, `Paraphraser` runs fixed phrase substitutions, fixed word substitutions, and sentence-start capitalization. It prints the result and asks whether to analyze it.
 10. On a second `y/Y`, the same preprocessing and detector/analyzer methods run again against the already-loaded documents; original data remains available. The program prints both reports and score differences, then returns 0.
 
 ## Verified worked run
@@ -41,4 +41,4 @@ The report's percentages are rounded to two decimals. Corpus iteration order can
 
 ## Termination and exceptional paths
 
-Normal completion returns 0. Missing reference directory is logged and results remain empty; report prints `"No reference documents found."` The manager does not catch filesystem exceptions for an existing non-directory or iteration failure. Input-choice extraction failure is not handled. Empty/no-word text is not rejected by `main`.
+Normal completion returns 0. Invalid text returns a failure status. Missing or invalid reference paths and iteration/read failures are reported; results may be empty or partial, and the report prints `"No reference documents found."` EOF at a yes/no prompt exits safely. The local corpus path remains relative to the current working directory.

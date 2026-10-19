@@ -175,21 +175,27 @@ because n is constant.
 ============================================================
 */
 
+
 vector<string> TextProcessor::generateNGrams(
     const vector<string>& words,
     int n)
 {
     vector<string> ngrams;
 
-    if (n <= 0 || words.size() < static_cast<size_t>(n))
+    if (n <= 0)
+        return ngrams;
+
+    const size_t nSize = static_cast<size_t>(n);
+
+    if (words.size() < nSize)
         return ngrams;
 
     // Sliding window.
-    for (size_t i = 0; i <= words.size() - n; i++)
+    for (size_t i = 0; i <= words.size() - nSize; ++i)
     {
         string gram;
 
-        for (int j = 0; j < n; j++)
+        for (size_t j = 0; j < nSize; ++j)
         {
             if (j > 0)
                 gram += " ";

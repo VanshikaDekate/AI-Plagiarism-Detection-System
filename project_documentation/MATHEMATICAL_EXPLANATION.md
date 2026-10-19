@@ -22,7 +22,7 @@ For `"A cat sees a cat."`, preprocessing yields `["a","cat","sees","a","cat"]`. 
 
 ## AI-likeness heuristic
 
-The code upper-caps these normalized fields:
+The code maps these normalized fields into [0,1] (including lower clamping):
 
 ```text
 s = min(avgSentenceLength / 30, 1)
@@ -34,14 +34,14 @@ p = min(punctuationRate * 10, 1)
 g = min(functionWordRate * 2, 1)
 ```
 
-Then the raw weighted result is:
+Non-finite input fields return 0, and all-nonpositive fields return 0. Then the weighted result is:
 
 ```text
 0.20s + 0.10v + 0.10w + 0.20d
 + 0.15(1-r) + 0.10p + 0.15g
 ```
 
-The program multiplies by 100. Weights sum to 1, and each extracted normalized feature is ordinarily in [0,1]. For the example, s=1/6, v=0, w=.24, d=.60, r=.40, p≈.588235, g=.80:
+The program multiplies by 100 and clamps the result to [0,100]. Weights sum to 1, and each normalized feature is in [0,1]. For the example, s=1/6, v=0, w=.24, d=.60, r=.40, p≈.588235, g=.80:
 
 ```text
 100 * (.20*.166667 + .10*0 + .10*.24 + .20*.60
@@ -49,7 +49,7 @@ The program multiplies by 100. Weights sum to 1, and each extracted normalized f
 ≈ 44.6157
 ```
 
-The displayed classification is `"Moderate AI-like pattern"` (40–<70). Empty `FeatureVector` gives score 15 because the term `0.15*(1-r)` contributes .15 when r=0. `min` has no lower clamp; malformed manually constructed negative feature values can produce scores outside the claimed range. The thresholds and weights are course-project choices with no calibration dataset shown.
+The displayed classification is `"Moderate AI-like pattern"` (40–<70). Empty text is rejected by `main`, and a zero `FeatureVector` produces score 0. Non-finite manual inputs return 0; finite values are clamped before summation and the result is clamped to the promised range. The thresholds and weights are course-project choices with no calibration dataset shown.
 
 ## Jaccard similarity
 
@@ -71,15 +71,15 @@ cos(x,y) = (Σ_i x_i y_i) / (sqrt(Σ_i x_i²) * sqrt(Σ_i y_i²))
 
 With counts x=(a:2, cat:2, sees:1) and y=(a:2, cat:2, sits:1), dot product=2·2+2·2=8, each squared norm=4+4+1=9, so cosine=8/9≈0.88889. Both zero vectors return 0. It ignores word order and uses raw counts, not TF-IDF.
 
-## N-gram containment
+## N-gram Jaccard similarity
 
-The implementation computes:
+The implementation forms unique sets A and B from both n-gram vectors and computes symmetric Jaccard:
 
 ```text
-G = matching submitted n-gram occurrences / submitted n-gram occurrences
+G = |A ∩ B| / |A ∪ B|
 ```
 
-The denominator is the submitted vector length; the reference is converted to a set. Thus duplicates in the submitted vector count repeatedly and the score is asymmetric. For submitted `["a cat sees","cat sees a"]` and reference set `{"a cat sees","sees a cat"}`, score=1/2=0.5. It is not standard symmetric n-gram Jaccard despite being named similarity.
+Duplicates are removed on both sides. If both sets are empty, the implementation returns zero rather than dividing by zero. For submitted `["a cat sees","cat sees a"]` and reference `["a cat sees","sees a cat"]`, intersection=1, union=3, so score=1/3. Reversing submitted and reference gives the same score.
 
 ## Final similarity score and ranking
 
@@ -87,6 +87,6 @@ The denominator is the submitted vector length; the reference is converted to a 
 Final = 0.30*J + 0.50*cos + 0.20*G
 ```
 
-Using J=.5, cosine=8/9, G=.5 yields `.15 + .444444 + .10 = .694444` (69.44% when report multiplies the fractional score by 100). Weights sum to 1. `analyze` stores a fraction; reporting scales it by 100. The before/after summary in `main` does not scale it, causing mislabeled fractions.
+Using J=.5, cosine=8/9, G=.5 yields `.15 + .444444 + .10 = .694444` (69.44% when report multiplies the fractional score by 100). Weights sum to 1. `analyze` stores a fraction; both report and before/after output scale it by 100.
 
 The final score has constant-time arithmetic after the metrics. Ranking does not change the score: Quick Sort orders descending by `finalScore`, average O(R log R), worst O(R²).

@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cctype>
-#include <numeric>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -133,7 +132,7 @@ FeatureVector AIDetector::extractFeatures(
     // O(N)
     // =======================================================
 
-    unordered_map<string, int> frequency;
+    unordered_map<string, size_t> frequency;
 
     for (const string& word : words)
     {
@@ -161,15 +160,15 @@ FeatureVector AIDetector::extractFeatures(
     // Average Word Length
     // =======================================================
 
-    double totalCharacters = 0;
+    double totalCharacters = 0.0;
 
     for (const string& word : words)
     {
-        totalCharacters += word.length();
+        totalCharacters += static_cast<double>(word.length());
     }
 
     features.avgWordLength =
-        totalCharacters / words.size();
+        totalCharacters / static_cast<double>(words.size());
 
 
     // =======================================================
@@ -185,7 +184,7 @@ FeatureVector AIDetector::extractFeatures(
 
     features.vocabularyRichness =
         static_cast<double>(uniqueWords.size())
-        / words.size();
+        / static_cast<double>(words.size());
 
 
     // =======================================================
@@ -195,7 +194,7 @@ FeatureVector AIDetector::extractFeatures(
     // Counts words that appear more than once.
     // =======================================================
 
-    int repeatedWords = 0;
+    size_t repeatedWords = 0;
 
     for (const auto& pair : frequency)
     {
@@ -207,7 +206,7 @@ FeatureVector AIDetector::extractFeatures(
 
     features.repetitionRatio =
         static_cast<double>(repeatedWords)
-        / words.size();
+        / static_cast<double>(words.size());
 
 
     // =======================================================
@@ -215,7 +214,7 @@ FeatureVector AIDetector::extractFeatures(
     // Function Word Rate
     // =======================================================
 
-    int functionWordCount = 0;
+    size_t functionWordCount = 0;
 
     for (const string& word : words)
     {
@@ -227,7 +226,7 @@ FeatureVector AIDetector::extractFeatures(
 
     features.functionWordRate =
         static_cast<double>(functionWordCount)
-        / words.size();
+        / static_cast<double>(words.size());
 
 
     // =======================================================
@@ -237,7 +236,7 @@ FeatureVector AIDetector::extractFeatures(
     // Counts punctuation characters relative to text size.
     // =======================================================
 
-    int punctuationCount = 0;
+    size_t punctuationCount = 0;
 
     for (char ch : text)
     {
@@ -252,7 +251,7 @@ FeatureVector AIDetector::extractFeatures(
     {
         features.punctuationRate =
             static_cast<double>(punctuationCount)
-            / text.size();
+            / static_cast<double>(text.size());
     }
 
 
@@ -265,7 +264,7 @@ FeatureVector AIDetector::extractFeatures(
     // Stores number of words in each sentence.
     // =======================================================
 
-    vector<int> sentenceLengths;
+    vector<size_t> sentenceLengths;
 
     string currentSentence;
 
@@ -288,9 +287,7 @@ FeatureVector AIDetector::extractFeatures(
 
             if (!sentenceWords.empty())
             {
-                sentenceLengths.push_back(
-                    sentenceWords.size()
-                );
+                sentenceLengths.push_back(sentenceWords.size());
             }
 
             currentSentence.clear();
@@ -306,9 +303,7 @@ FeatureVector AIDetector::extractFeatures(
 
         if (!sentenceWords.empty())
         {
-            sentenceLengths.push_back(
-                sentenceWords.size()
-            );
+            sentenceLengths.push_back(sentenceWords.size());
         }
     }
 
@@ -320,14 +315,14 @@ FeatureVector AIDetector::extractFeatures(
         // Average Sentence Length
         // ===================================================
 
-        double sum = accumulate(
-            sentenceLengths.begin(),
-            sentenceLengths.end(),
-            0.0
-        );
+        double sum = 0.0;
+        for (size_t length : sentenceLengths)
+        {
+            sum += static_cast<double>(length);
+        }
 
         double mean =
-            sum / sentenceLengths.size();
+            sum / static_cast<double>(sentenceLengths.size());
 
         features.avgSentenceLength = mean;
 
@@ -345,14 +340,16 @@ FeatureVector AIDetector::extractFeatures(
 
         double variance = 0.0;
 
-        for (int length : sentenceLengths)
+        for (size_t length : sentenceLengths)
         {
+            const double sentenceLength =
+                static_cast<double>(length);
             variance +=
-                (length - mean) *
-                (length - mean);
+                (sentenceLength - mean) *
+                (sentenceLength - mean);
         }
 
-        variance /= sentenceLengths.size();
+        variance /= static_cast<double>(sentenceLengths.size());
 
         features.sentenceLengthVariance =
             variance;
@@ -386,56 +383,52 @@ IMPORTANT:
 ============================================================
 */
 
+
 double AIDetector::calculateScore(
     const FeatureVector& f) const
 {
-    /*
-    --------------------------------------------------------
-    Feature normalization
-    --------------------------------------------------------
+    if (!isfinite(f.avgSentenceLength) ||
+        !isfinite(f.sentenceLengthVariance) ||
+        !isfinite(f.avgWordLength) ||
+        !isfinite(f.vocabularyRichness) ||
+        !isfinite(f.repetitionRatio) ||
+        !isfinite(f.punctuationRate) ||
+        !isfinite(f.functionWordRate))
+    {
+        return 0.0;
+    }
 
-    These ranges are intentionally simple for the first
-    implementation and can later be calibrated using a
-    labeled dataset.
-    --------------------------------------------------------
-    */
+    // Do not score text with no measurable linguistic features.
+    if (f.avgSentenceLength <= 0.0 &&
+        f.sentenceLengthVariance <= 0.0 &&
+        f.avgWordLength <= 0.0 &&
+        f.vocabularyRichness <= 0.0 &&
+        f.repetitionRatio <= 0.0 &&
+        f.punctuationRate <= 0.0 &&
+        f.functionWordRate <= 0.0)
+    {
+        return 0.0;
+    }
 
-    double sentenceLengthScore =
-        min(f.avgSentenceLength / 30.0, 1.0);
+    const auto normalize = [](double value, double scale)
+    {
+        return clamp(value / scale, 0.0, 1.0);
+    };
 
-
-    double varianceScore =
-        min(f.sentenceLengthVariance / 100.0, 1.0);
-
-
-    double wordLengthScore =
-        min(f.avgWordLength / 10.0, 1.0);
-
-
-    /*
-    High vocabulary richness generally represents more
-    diverse vocabulary, so we use it directly.
-    */
-
-    double vocabularyScore =
-        min(f.vocabularyRichness, 1.0);
-
-
-    double repetitionScore =
-        min(f.repetitionRatio, 1.0);
-
-
-    double punctuationScore =
-        min(f.punctuationRate * 10.0, 1.0);
-
-
-    double functionWordScore =
-        min(f.functionWordRate * 2.0, 1.0);
-
-
-    // -------------------------------------------------------
-    // WEIGHTED SCORE
-    // -------------------------------------------------------
+    const double sentenceLengthScore =
+        normalize(f.avgSentenceLength, 30.0);
+    const double varianceScore =
+        normalize(f.sentenceLengthVariance, 100.0);
+    const double wordLengthScore =
+        normalize(f.avgWordLength, 10.0);
+    const double vocabularyScore =
+        clamp(f.vocabularyRichness, 0.0, 1.0);
+    const double repetitionScore =
+        clamp(f.repetitionRatio, 0.0, 1.0);
+    const double punctuationScore =
+        normalize(f.punctuationRate, 0.1);
+    const double functionWordScore =
+        normalize(f.functionWordRate, 0.5);
 
     double score =
           0.20 * sentenceLengthScore
@@ -446,9 +439,9 @@ double AIDetector::calculateScore(
         + 0.10 * punctuationScore
         + 0.15 * functionWordScore;
 
-
-    return score * 100.0;
+    return clamp(score * 100.0, 0.0, 100.0);
 }
+
 
 
 /*

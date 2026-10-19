@@ -6,13 +6,52 @@
 #include "Paraphraser.h"
 
 #include <iostream>
+#include <cstdlib>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <limits>
 
 using namespace std;
 
+bool askYesNo(const string& prompt, bool& answer)
+{
+    while (true)
+    {
+        cout << prompt;
+
+        string input;
+        if (!getline(cin, input))
+        {
+            cout << "\nInput ended. Exiting safely.\n";
+            return false;
+        }
+
+        // Allow surrounding whitespace.
+        size_t first = input.find_first_not_of(" \t\r");
+        if (first == string::npos)
+        {
+            cout << "Please enter y or n.\n";
+            continue;
+        }
+
+        size_t last = input.find_last_not_of(" \t\r");
+        input = input.substr(first, last - first + 1);
+
+        if (input == "y" || input == "Y")
+        {
+            answer = true;
+            return true;
+        }
+
+        if (input == "n" || input == "N")
+        {
+            answer = false;
+            return true;
+        }
+
+        cout << "Invalid input. Please enter y or n.\n";
+    }
+}
 
 /*
 ============================================================
@@ -97,6 +136,12 @@ int main()
         originalText += line; // Append the current line to the original text.
     }
 
+    if (cin.bad())
+    {
+        cerr << "Error: Failed while reading input.\n";
+        return 1;
+    }
+
     // =======================================================
     // STEP 2: TEXT PREPROCESSING
     //
@@ -145,6 +190,13 @@ int main()
         frequency[word]++; // Increment the count for the current word in the frequency table. If the word does not exist, it is automatically added with a count of 1.
     }
 
+
+    // Reject empty or punctuation-only submissions.
+    if (words.empty())
+    {
+        cout << "\nError: Please enter valid text to analyse.\n";
+        return EXIT_FAILURE;
+    }
 
     // =======================================================
     // DISPLAY BASIC INFORMATION
@@ -252,13 +304,16 @@ int main()
     );
 
 
-    char choice;
+    bool rephraseChoice = false;
 
-    cout << "\nWould you like to rephrase the submitted text? (y/n): ";
-    cin >> choice;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    if (!askYesNo(
+            "\nWould you like to rephrase the submitted text? (y/n): ",
+            rephraseChoice))
+    {
+        return 0;
+    }
 
-    if (choice == 'y' || choice == 'Y')
+    if (rephraseChoice)
     {
         Paraphraser paraphraser;
 
@@ -269,11 +324,15 @@ int main()
         cout << "========================================\n";
         cout << rephrasedText << "\n";
 
-        cout << "\nWould you like to analyse the rephrased text? (y/n): ";
-        cin >> choice;
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        bool analyzeRephrased = false;
+        if (!askYesNo(
+                "\nWould you like to analyse the rephrased text? (y/n): ",
+                analyzeRephrased))
+        {
+            return 0;
+        }
 
-        if (choice == 'y' || choice == 'Y')
+        if (analyzeRephrased)
         {
             // Preprocess the rephrased text.
             string rephrasedCleanedText =
@@ -335,19 +394,23 @@ int main()
                  << rephrasedAiScore - aiScore
                  << " percentage points\n";
 
+
             // Compare the top similarity scores.
+            // finalScore is stored as a fraction from 0.0 to 1.0,
+            // so convert it to a percentage before displaying it.
             double originalSimilarity = 0.0;
             double rephrasedSimilarity = 0.0;
 
             if (!results.empty())
             {
-                originalSimilarity = results.front().finalScore;
+                originalSimilarity =
+                    results.front().finalScore * 100.0;
             }
 
             if (!rephrasedResults.empty())
             {
                 rephrasedSimilarity =
-                    rephrasedResults.front().finalScore;
+                    rephrasedResults.front().finalScore * 100.0;
             }
 
             cout << "Similarity before : "
@@ -359,27 +422,15 @@ int main()
             cout << "Similarity change : "
                  << rephrasedSimilarity - originalSimilarity
                  << " percentage points\n";
-        }
-    }
+        } // Closes the rephrased-text analysis branch.
+    }     // Closes the rephrase-choice branch.
 
 
     // =======================================================
     // PART 1 COMPLETE
     //
-    // IMPORTANT:
-    // We do NOT call a rephraser here.
-    //
-    // Part 2 will later add:
-    //
-    //     original text
-    //          ↓
-    //       rephrase
-    //          ↓
-    //     AI detection
-    //          +
-    //     plagiarism detection
-    //          ↓
-    //      before/after
+    // The optional rephrasing and before/after analysis
+    // above complete the second stage of the workflow.
     //
     // =======================================================
 
